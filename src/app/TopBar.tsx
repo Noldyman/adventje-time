@@ -92,7 +92,7 @@ export const TopBar = () => {
                 color="inherit"
                 onClick={handleMenu}
               >
-                Account
+                {user.displayName ? user.displayName : "Account"}
               </Button>
               <Menu
                 anchorEl={anchorEl}

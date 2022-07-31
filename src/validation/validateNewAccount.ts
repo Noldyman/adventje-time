@@ -1,8 +1,9 @@
 import { validate } from "./validate";
-import { email, password } from "./validators";
+import { email, firstName, password } from "./validators";
 
 const schema = {
   email,
+  firstName,
   password,
 };
 

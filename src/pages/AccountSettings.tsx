@@ -1,4 +1,4 @@
-import React, { useState, ChangeEvent } from "react";
+import React, { useState, useEffect, ChangeEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, TextField, Button, Typography } from "@mui/material";
 import { LoadingButton } from "@mui/lab";
@@ -9,16 +9,20 @@ import {
   reauthenticateWithCredential,
   deleteUser,
   EmailAuthProvider,
+  updateProfile,
 } from "firebase/auth";
 import { auth } from "../app/firebase";
-import { useSetRecoilState } from "recoil";
+import { useRecoilState, useSetRecoilState } from "recoil";
 import { notificationState } from "../services/notifications";
+import { userState } from "../services/user";
+import { validateProfile } from "../validation/validateProfile";
 
 interface IErrors {
   [k: string]: string;
 }
 
 const initialFormValues = {
+  firstName: "",
   oldPassword: "",
   newPassword: "",
   confirmPassword: "",
@@ -30,8 +34,18 @@ const AccountSettings: React.FC = () => {
   const [formValues, setFormValues] = useState(initialFormValues);
   const [pwdLoading, setPwdLoading] = useState(false);
   const [pwdErrors, setPwdErrors] = useState<IErrors>({});
+  const [profileLoading, setProfileLoading] = useState(false);
+  const [profileErrors, setProfileErrors] = useState<IErrors>({});
   const [delAccLoading, setDelAccLoading] = useState(false);
   const setNotification = useSetRecoilState(notificationState);
+  const [user, setUser] = useRecoilState(userState);
+
+  useEffect(() => {
+    setFormValues((prevValue) => ({
+      ...prevValue,
+      firstName: user?.displayName || "",
+    }));
+  }, [user]);
 
   const handleFormChange = (e: ChangeEvent<HTMLInputElement>) => {
     setFormValues((prevValue) => {
@@ -39,15 +53,51 @@ const AccountSettings: React.FC = () => {
     });
   };
 
+  const cancelChangeProfile = () => {
+    setProfileErrors({});
+    setFormValues((prevValue) => ({
+      ...prevValue,
+      firstName: user?.displayName || "",
+    }));
+  };
+
+  const handleChangeProfile = async () => {
+    setProfileErrors({});
+    const yupErrors = await validateProfile({
+      firstName: formValues.firstName,
+    });
+    if (yupErrors) return setProfileErrors(yupErrors);
+
+    if (auth.currentUser) {
+      try {
+        setProfileLoading(true);
+        await updateProfile(auth.currentUser, {
+          displayName: formValues.firstName,
+        });
+        const userCopy = JSON.parse(JSON.stringify(auth.currentUser)); //Due to bug in recoil
+        setUser(userCopy);
+        setNotification({
+          text: "User profile has been updated",
+          severity: "success",
+        });
+      } catch (err) {
+        console.log(err);
+        setNotification({
+          text: "Something went wrong. User profile could not be updated",
+          severity: "error",
+        });
+      }
+      setProfileLoading(false);
+    }
+  };
+
   const cancelChangePassword = () => {
     setPwdErrors({});
-    setFormValues((prevValue) => {
-      return {
-        ...prevValue,
-        newPassword: "",
-        confirmPassword: "",
-      };
-    });
+    setFormValues((prevValue) => ({
+      ...prevValue,
+      newPassword: "",
+      confirmPassword: "",
+    }));
   };
 
   const handleChangePassword = async () => {
@@ -127,6 +177,62 @@ const AccountSettings: React.FC = () => {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+      <Card
+        style={{
+          margin: "auto",
+          width: "600px",
+          padding: "20px 40px",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          gap: "20px",
+        }}
+      >
+        <Typography variant="h5">Change profile</Typography>
+        <TextField
+          fullWidth
+          id="firstName"
+          name="firstName"
+          label="First name"
+          size="small"
+          type="text"
+          value={formValues.firstName}
+          onChange={handleFormChange}
+          error={Boolean(profileErrors["firstName"])}
+          helperText={profileErrors["firstName"]}
+        />
+        <div
+          style={{
+            width: "100%",
+            display: "flex",
+            justifyContent: "center",
+            gap: "20px",
+          }}
+        >
+          <Button
+            style={{ width: "175px" }}
+            size="small"
+            variant="contained"
+            color="secondary"
+            onClick={cancelChangeProfile}
+          >
+            Cancel
+          </Button>
+          <LoadingButton
+            style={{ width: "175px" }}
+            size="small"
+            color="primary"
+            loading={profileLoading}
+            loadingPosition="start"
+            startIcon={<Save />}
+            variant="contained"
+            onClick={handleChangeProfile}
+            disabled={user?.displayName === formValues.firstName}
+          >
+            Save changes
+          </LoadingButton>
+        </div>
+      </Card>
       <Card
         style={{
           margin: "auto",

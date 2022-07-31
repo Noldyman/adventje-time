@@ -3,11 +3,12 @@ import { useNavigate, Link } from "react-router-dom";
 import { Card, TextField, Typography, Button } from "@mui/material";
 import { LoadingButton } from "@mui/lab";
 import { validateNewAccount } from "../../validation/validateNewAccount";
-import { createUserWithEmailAndPassword } from "firebase/auth";
+import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
 import { auth } from "../../app/firebase";
 import { PersonAdd } from "@mui/icons-material";
 import { useSetRecoilState } from "recoil";
 import { notificationState } from "../../services/notifications";
+import { userState } from "../../services/user";
 
 interface IErrors {
   [k: string]: string;
@@ -15,6 +16,7 @@ interface IErrors {
 
 const initialFormValues = {
   email: "",
+  firstName: "",
   password: "",
   confirmPassword: "",
 };
@@ -25,6 +27,7 @@ export const SignUp = () => {
   const [errors, setErrors] = useState<IErrors>({});
   const [loading, setLoading] = useState(false);
   const setNotification = useSetRecoilState(notificationState);
+  const setUser = useSetRecoilState(userState);
 
   const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
     setFormValues((prevValue) => {
@@ -54,6 +57,13 @@ export const SignUp = () => {
         formValues.email,
         formValues.password
       );
+      if (auth.currentUser) {
+        await updateProfile(auth.currentUser, {
+          displayName: formValues.firstName,
+        });
+        const userCopy = JSON.parse(JSON.stringify(auth.currentUser)); //Due to bug in recoil
+        setUser(userCopy);
+      }
       setLoading(false);
       navigate("/dashboard");
     } catch (err) {
@@ -99,6 +109,17 @@ export const SignUp = () => {
           onChange={handleChange}
           error={Boolean(errors["email"])}
           helperText={errors["email"]}
+        />
+        <TextField
+          fullWidth
+          size="small"
+          type="text"
+          name="firstName"
+          label="First name"
+          value={formValues.firstName}
+          onChange={handleChange}
+          error={Boolean(errors["firstName"])}
+          helperText={errors["firstName"]}
         />
         <TextField
           fullWidth

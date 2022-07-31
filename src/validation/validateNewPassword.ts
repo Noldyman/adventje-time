@@ -1,8 +1,8 @@
 import { validate } from "./validate";
-import { requiredString, password } from "./validators";
+import { oldPassword, password } from "./validators";
 
 const schema = {
-  oldPassword: requiredString,
+  oldPassword,
   password,
 };
 
